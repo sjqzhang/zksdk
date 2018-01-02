@@ -3,13 +3,14 @@ package zksdk
 import (
 	"errors"
 	"fmt"
-	logger "github.com/alecthomas/log4go"
-	"github.com/samuel/go-zookeeper/zk"
 	"os"
 	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
+
+	logger "github.com/alecthomas/log4go"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 const (
@@ -434,7 +435,7 @@ func (this *ZkSdk) GetSonsMoreWX(path string, exitCh chan bool, hand SonHandler)
 		var msg *TPubMsg
 		var ok bool
 		oldSons := make(map[string]string, 0)
-		_,_,oldSons = DiffNodes(data, oldSons) //这个是新加的，没有验证过，需要看看对不对
+		_, _, oldSons = DiffNodes(data, oldSons) //这个是新加的，没有验证过，需要看看对不对
 		for {
 			select {
 			case msg, ok = <-WatchCh:
@@ -660,67 +661,67 @@ func (this *ZkSdk) WatchChild(path string, exitCh chan bool, useFirst bool) (<-c
 	return watchPubCh, nil
 }
 
-//将被废弃
-func (this *ZkSdk) WatchChildX(path string, exitCh chan bool, hand SonHandler, useFirst bool) error {
-	if !this.mRunFlag {
-		return fmt.Errorf("ZkSdk not started")
-	}
-	oldSons := make(map[string]string, 0)
-	go func() {
-		var event zk.Event
-		event.Type = zk.EventNotWatching
-		oldCVer := int32(-2)
-		this.mWaitGroup.Add(1)
-		defer this.mWaitGroup.Done()
-		logger.Info("ZkSdk WatchChildX[%s]", path)
-		defer logger.Info("ZkSdk UnWatchChildX[%s]", path)
+////将被废弃
+//func (this *ZkSdk) WatchChildX(path string, exitCh chan bool, hand SonHandler, useFirst bool) error {
+//	if !this.mRunFlag {
+//		return fmt.Errorf("ZkSdk not started")
+//	}
+//	oldSons := make(map[string]string, 0)
+//	go func() {
+//		var event zk.Event
+//		event.Type = zk.EventNotWatching
+//		oldCVer := int32(-2)
+//		this.mWaitGroup.Add(1)
+//		defer this.mWaitGroup.Done()
+//		logger.Info("ZkSdk WatchChildX[%s]", path)
+//		defer logger.Info("ZkSdk UnWatchChildX[%s]", path)
 
-		for {
-			data, stat, oneEventCh, err := this.mConn.ChildrenW(path)
-			if err == zk.ErrNoNode {
-				logger.Info("node[%s] noExist", path)
-				add, del, _ := DiffNodes(nil, oldSons)
-				hand.Proc(add, del, stat, true)
-				return
-			}
-			if err != nil {
-				logger.Error("ChildrenW[%s] err[%v]", path, err)
-				time.Sleep(time.Second * Default_ConErrSleep)
-				continue
-			}
-			if !useFirst {
-				useFirst = true
-				oldCVer = stat.Cversion
-			}
+//		for {
+//			data, stat, oneEventCh, err := this.mConn.ChildrenW(path)
+//			if err == zk.ErrNoNode {
+//				logger.Info("node[%s] noExist", path)
+//				add, del, _ := DiffNodes(nil, oldSons)
+//				hand.Proc(add, del, stat, true)
+//				return
+//			}
+//			if err != nil {
+//				logger.Error("ChildrenW[%s] err[%v]", path, err)
+//				time.Sleep(time.Second * Default_ConErrSleep)
+//				continue
+//			}
+//			if !useFirst {
+//				useFirst = true
+//				oldCVer = stat.Cversion
+//			}
 
-			if stat.Cversion > oldCVer {
-				logger.Info("node[%s] children change[%v]", path, data)
-				add, del, newMap := DiffNodes(data, oldSons)
-				oldSons = newMap
-				hand.Proc(data, add, del, stat, false)
-				oldCVer = stat.Cversion
-			}
+//			if stat.Cversion > oldCVer {
+//				logger.Info("node[%s] children change[%v]", path, data)
+//				add, del, newMap := DiffNodes(data, oldSons)
+//				oldSons = newMap
+//				hand.Proc(data, add, del, stat, false)
+//				oldCVer = stat.Cversion
+//			}
 
-			select {
-			case event = <-oneEventCh:
-			case <-this.mExitCh:
-				return
-			case <-exitCh:
-				return
-			}
+//			select {
+//			case event = <-oneEventCh:
+//			case <-this.mExitCh:
+//				return
+//			case <-exitCh:
+//				return
+//			}
 
-			//若该节点被删除，则退出循环，退出go程
-			if event.Type == zk.EventNodeDeleted {
-				logger.Info("node[%s] Deleted", path)
-				add, del, _ := DiffNodes(nil, oldSons)
-				hand.Proc(add, del, stat, true)
-				return
-			}
-		}
-	}()
+//			//若该节点被删除，则退出循环，退出go程
+//			if event.Type == zk.EventNodeDeleted {
+//				logger.Info("node[%s] Deleted", path)
+//				add, del, _ := DiffNodes(nil, oldSons)
+//				hand.Proc(add, del, stat, true)
+//				return
+//			}
+//		}
+//	}()
 
-	return nil
-}
+//	return nil
+//}
 
 /*********************************内部接口***********************************/
 //zk第一次必须收到会话消息才认为ZkMgr启动成功
